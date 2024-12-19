@@ -6,17 +6,16 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3001; // Changed default port to 3001
 
-// Configure CORS
 app.use(cors({
-  origin: 'http://localhost:3000',
-  credentials: true
-}));
-app.use(express.json());
-
-// Test route
-app.get('/api/test', (req, res) => {
-  res.json({ message: 'Server is working' });
-});
+    origin: ['http://localhost:3000', 'https://your-frontend-domain.com'],
+    credentials: true
+  }));
+  app.use(express.json());
+  
+  // Health check route
+  app.get('/', (req, res) => {
+    res.json({ status: 'Server is running' });
+  });
 
 // Add the placeholder route
 app.get('/api/placeholder/:width/:height', (req, res) => {
