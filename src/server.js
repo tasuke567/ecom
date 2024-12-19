@@ -30,10 +30,7 @@ app.get('/api/placeholder/:width/:height', (req, res) => {
 async function startServer() {
   try {
     console.log('Connecting to MongoDB...');
-    await mongoose.connect(process.env.MONGO_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true
-    });
+    await mongoose.connect(process.env.MONGO_URI); // ลบ options ที่ไม่จำเป็นออก
     console.log('MongoDB Connected');
 
     app.listen(PORT, () => {
