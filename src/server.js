@@ -7,9 +7,13 @@ const app = express();
 const PORT = process.env.PORT || 3001; // Changed default port to 3001
 
 app.use(cors({
-    origin: ['http://localhost:3000', 'https://your-frontend-domain.com'],
-    credentials: true
-  }));
+  origin: [
+    'http://localhost:3000',
+    'https://comfronteiei.netlify.app',
+    'https://6763c5ae3d1a0800085f0e92--comfronteiei.netlify.app'
+  ],
+  credentials: true
+}));
   app.use(express.json());
   
   // Health check route
