@@ -29,15 +29,20 @@ app.get('/api/placeholder/:width/:height', (req, res) => {
 
 async function startServer() {
   try {
-    await mongoose.connect(process.env.MONGO_URI);
+    console.log('Connecting to MongoDB...');
+    await mongoose.connect(process.env.MONGO_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true
+    });
     console.log('MongoDB Connected');
 
-    app.listen(PORT, '127.0.0.1', () => {
-      console.log(`Server running on http://localhost:${PORT}`);
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
     });
 
   } catch (err) {
-    console.error('Failed to start server:', err);
+    console.error('MongoDB Connection Error:', err.message);
+    console.error('Full error:', err);
     process.exit(1);
   }
 }
