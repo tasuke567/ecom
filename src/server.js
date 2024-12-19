@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const authRouter = require('./routes/auth');
 require('dotenv').config();
 
 const app = express();
@@ -18,22 +19,15 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
-  app.use(express.json());
-  
-  // Health check route
-  app.get('/', (req, res) => {
-    res.json({ status: 'Server is running' });
-  });
+app.use(express.json());
+app.use('/auth', authRouter);
 
-// Add the placeholder route
-app.get('/api/placeholder/:width/:height', (req, res) => {
-  const { width, height } = req.params;
-  res.json({
-    url: `https://via.placeholder.com/${width}x${height}`,
-    width,
-    height
-  });
+// Health check route
+app.get('/', (req, res) => {
+  res.json({ status: 'Server is running' });
 });
+
+
 
 async function startServer() {
   try {
