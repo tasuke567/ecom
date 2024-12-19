@@ -10,8 +10,12 @@ app.use(cors({
   origin: [
     'http://localhost:3000',
     'https://comfronteiei.netlify.app',
-    'https://6763c5ae3d1a0800085f0e92--comfronteiei.netlify.app'
+    'https://6763d532c703bc000841b72b--comfronteiei.netlify.app',
+    // รองรับทุก subdomain ของ netlify
+    /\.netlify\.app$/
   ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
   app.use(express.json());
