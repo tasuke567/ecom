@@ -38,56 +38,43 @@ passport.use(new GoogleStrategy({
 router.post('/google', async (req, res) => {
   try {
     console.log('Starting Google authentication...');
-    console.log('Using Client ID:', process.env.GOOGLE_CLIENT_ID);
-
-
     const { credential } = req.body;
 
     if (!credential) {
-      return res.status(400).json({ message: 'Google credential is required' });
+      return res.status(400).json({
+        success: false,
+        message: 'Credential is required'
+      });
     }
-    // Decode token to check audience without verification
-    const tokenParts = credential.split('.');
-    const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
-    console.log('Token audience:', payload.aud);
-    console.log('Expected audience:', process.env.GOOGLE_CLIENT_ID);
+    // Log Client ID for debugging
+    console.log('Using Client ID:', process.env.GOOGLE_CLIENT_ID);
 
-    // Verify token
     try {
       const ticket = await client.verifyIdToken({
         idToken: credential,
-        audience: process.env.GOOGLE_CLIENT_ID
+        audience: process.env.GOOGLE_CLIENT_ID.trim() // เพิ่ม trim() เพื่อลบช่องว่าง
       });
-      const userData = ticket.getPayload();
-
-      const { email, name, picture, sub: googleId } = userData;
+      const payload = ticket.getPayload();
+      console.log('Token verified successfully');
       // Find or create user
-      let user = await User.findOne({ email });
+      let user = await User.findOne({ email: payload.email });
       if (!user) {
-        // Create new user
         user = await User.create({
-          email,
-          name,
-          googleId,
-          avatar: picture,
+          name: payload.name,
+          email: payload.email,
+          googleId: payload.sub,
+          avatar: payload.picture,
           isGoogleUser: true
         });
-      } else {
-        // Update existing user's Google info
-        user.googleId = googleId;
-        user.avatar = picture;
-        user.isGoogleUser = true;
-        await user.save();
       }
-      // Create JWT token
+      // Generate JWT
       const token = jwt.sign(
         { userId: user._id },
         process.env.JWT_SECRET,
         { expiresIn: '24h' }
       );
-      // Return user data and token
-      res.status(200).json({
-        message: 'Google login successful',
+      return res.status(200).json({
+        success: true,
         user: {
           id: user._id,
           name: user.name,
@@ -100,18 +87,20 @@ router.post('/google', async (req, res) => {
       console.error('Token verification error:', {
         message: verifyError.message,
         expected: process.env.GOOGLE_CLIENT_ID,
-        received: payload.aud
+        received: credential.aud
       });
+
       return res.status(401).json({
-        message: 'Token verification failed',
+        success: false,
+        message: 'Invalid Google token',
         error: verifyError.message
       });
     }
-  }
-  catch (error) {
-    console.error('Google login error:', error);
-    res.status(500).json({
-      message: 'Google login failed',
+  } catch (error) {
+    console.error('Google authentication error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Authentication failed',
       error: error.message
     });
   }
@@ -120,7 +109,7 @@ router.post('/google', async (req, res) => {
 
 
 
-router.post('/register', async (req, res) => {
+  router.post('/register', async (req, res) => {
   try {
     const { username, email, password } = req.body;
 
