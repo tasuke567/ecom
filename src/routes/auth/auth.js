@@ -2,8 +2,12 @@ const express = require('express');
 const router = express.Router();
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const { OAuth2Client } = require('google-auth-library');
 const User = require('../../models/User');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
 
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
@@ -33,64 +37,65 @@ passport.use(new GoogleStrategy({
 // Google login route
 router.post('/google', async (req, res) => {
   try {
-    // Debug logs
     console.log('Starting Google login process');
     console.log('Request body:', req.body);
     
-    const { credential } = req.body;  // เปลี่ยนจาก token เป็น credential
+    const { credential } = req.body;
     
     if (!credential) {
       console.log('No credential provided');
-      return res.status(400).json({ message: 'Credential is required' });
+      return res.status(400).json({ message: 'Google credential is required' });
     }
      // Verify token
-    console.log('Verifying Google token');
-    const ticket = await client.verifyIdToken({
-      idToken: credential,
-      audience: process.env.GOOGLE_CLIENT_ID
-    });
-     const payload = ticket.getPayload();
-    console.log('Google payload received:', {
-      email: payload.email,
-      name: payload.name
-    });
-     // Find or create user
-    let user = await User.findOne({ email: payload.email });
-    console.log('Existing user found:', !!user);
-     if (!user) {
-      console.log('Creating new user');
-      user = new User({
-        name: payload.name,
-        email: payload.email,
-        picture: payload.picture,
-        googleId: payload.sub
-      });
-      await user.save();
-      console.log('New user created');
-    }
-     // Send response
-    res.status(200).json({
-      message: 'Google login successful',
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        picture: user.picture
-      }
-    });
-   } catch (error) {
-    console.error('Detailed Google login error:', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name
-    });
-    
-    res.status(500).json({
-      message: 'Google login failed',
-      error: error.message,
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
-  }
+   console.log('Verifying Google token');
+   const ticket = await client.verifyIdToken({
+     idToken: credential,
+     audience: process.env.GOOGLE_CLIENT_ID
+   });
+    const payload = ticket.getPayload();
+   const { email, name, picture, sub: googleId } = payload;
+    // Find or create user
+   let user = await User.findOne({ email });
+    if (!user) {
+     // Create new user
+     user = await User.create({
+       email,
+       name,
+       googleId,
+       avatar: picture,
+       isGoogleUser: true
+     });
+   } else {
+     // Update existing user's Google info
+     user.googleId = googleId;
+     user.avatar = picture;
+     user.isGoogleUser = true;
+     await user.save();
+   }
+    // Create JWT token
+   const token = jwt.sign(
+     { userId: user._id },
+     process.env.JWT_SECRET,
+     { expiresIn: '24h' }
+   );
+    // Return user data and token
+   res.status(200).json({
+     message: 'Google login successful',
+     user: {
+       id: user._id,
+       name: user.name,
+       email: user.email,
+       avatar: user.avatar
+     },
+     token
+   });
+  } catch (error) {
+   console.error('Google login error:', error);
+   res.status(500).json({
+     message: 'Google login failed',
+     error: error.message
+   });
+ }
 });
 
 
