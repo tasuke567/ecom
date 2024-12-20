@@ -1,4 +1,5 @@
 const express = require('express');
+const passport = require('passport');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const authRouter = require('./routes/auth/auth');
@@ -6,6 +7,8 @@ require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3001; // Changed default port to 3001
+
+app.use(passport.initialize());
 
 app.use(cors({
   origin: [
