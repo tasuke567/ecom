@@ -33,32 +33,42 @@ passport.use(new GoogleStrategy({
 // Google login route
 router.post('/google', async (req, res) => {
   try {
-    console.log('Received Google login request:', req.body);
-    const { token } = req.body;
-    if (!token) {
-      return res.status(400).json({ message: 'Token is required' });
+    // Debug logs
+    console.log('Starting Google login process');
+    console.log('Request body:', req.body);
+    
+    const { credential } = req.body;  // เปลี่ยนจาก token เป็น credential
+    
+    if (!credential) {
+      console.log('No credential provided');
+      return res.status(400).json({ message: 'Credential is required' });
     }
-    // Verify token
+     // Verify token
+    console.log('Verifying Google token');
     const ticket = await client.verifyIdToken({
-      idToken: token,
+      idToken: credential,
       audience: process.env.GOOGLE_CLIENT_ID
     });
-    const payload = ticket.getPayload();
-    console.log('Google payload:', payload);
-    const { name, email, picture } = payload;
-    // Find or create user
-    let user = await User.findOne({ email });
-    console.log('Existing user:', user);
-    if (!user) {
-      user = await User.create({
-        name,
-        email,
-        picture,
-        googleId: payload.sub, // Google's unique identifier
-        password: undefined // ไม่จำเป็นสำหรับ Google login
+     const payload = ticket.getPayload();
+    console.log('Google payload received:', {
+      email: payload.email,
+      name: payload.name
+    });
+     // Find or create user
+    let user = await User.findOne({ email: payload.email });
+    console.log('Existing user found:', !!user);
+     if (!user) {
+      console.log('Creating new user');
+      user = new User({
+        name: payload.name,
+        email: payload.email,
+        picture: payload.picture,
+        googleId: payload.sub
       });
-      console.log('Created new user:', user);
+      await user.save();
+      console.log('New user created');
     }
+     // Send response
     res.status(200).json({
       message: 'Google login successful',
       user: {
@@ -68,12 +78,17 @@ router.post('/google', async (req, res) => {
         picture: user.picture
       }
     });
-  } catch (error) {
-    console.error('Detailed Google login error:', error);
+   } catch (error) {
+    console.error('Detailed Google login error:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    
     res.status(500).json({
       message: 'Google login failed',
       error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
