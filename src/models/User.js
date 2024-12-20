@@ -12,7 +12,7 @@ const userSchema = new mongoose.Schema({
  password: {
    type: String,
    required: function() {
-     return !this.googleId; // Password required only if not Google login
+     return !this.googleId; // Password ไม่จำเป็นถ้าเป็น Google login
    }
  },
  googleId: {
@@ -24,5 +24,5 @@ const userSchema = new mongoose.Schema({
    type: Date,
    default: Date.now
  }
-})
+);
 module.exports = mongoose.model('User', userSchema);

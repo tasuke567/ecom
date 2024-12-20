@@ -29,27 +29,35 @@ passport.use(new GoogleStrategy({
       return done(error, null);
     }
   }
-)); 
+));
 // Google login route
 router.post('/google', async (req, res) => {
   try {
-    const { token } = req.body; // Google ID token from frontend
-    // Verify token and get user info
+    console.log('Received Google login request:', req.body);
+    const { token } = req.body;
+    if (!token) {
+      return res.status(400).json({ message: 'Token is required' });
+    }
+    // Verify token
     const ticket = await client.verifyIdToken({
       idToken: token,
       audience: process.env.GOOGLE_CLIENT_ID
     });
-    const { name, email, picture } = ticket.getPayload();
-    // Check if user exists
+    const payload = ticket.getPayload();
+    console.log('Google payload:', payload);
+    const { name, email, picture } = payload;
+    // Find or create user
     let user = await User.findOne({ email });
+    console.log('Existing user:', user);
     if (!user) {
-      // Create new user if doesn't exist
       user = await User.create({
         name,
         email,
         picture,
-        googleId: ticket.getUserId()
+        googleId: payload.sub, // Google's unique identifier
+        password: undefined // ไม่จำเป็นสำหรับ Google login
       });
+      console.log('Created new user:', user);
     }
     res.status(200).json({
       message: 'Google login successful',
@@ -61,10 +69,11 @@ router.post('/google', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Google login error:', error);
+    console.error('Detailed Google login error:', error);
     res.status(500).json({
       message: 'Google login failed',
-      error: error.message
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
