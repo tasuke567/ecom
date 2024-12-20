@@ -37,65 +37,84 @@ passport.use(new GoogleStrategy({
 // Google login route
 router.post('/google', async (req, res) => {
   try {
-    console.log('Starting Google login process');
-    console.log('Request body:', req.body);
-    
+    console.log('Starting Google authentication...');
+    console.log('Using Client ID:', process.env.GOOGLE_CLIENT_ID);
+
+
     const { credential } = req.body;
-    
+
     if (!credential) {
-      console.log('No credential provided');
       return res.status(400).json({ message: 'Google credential is required' });
     }
-     // Verify token
-   console.log('Verifying Google token');
-   const ticket = await client.verifyIdToken({
-     idToken: credential,
-     audience: process.env.GOOGLE_CLIENT_ID
-   });
-    const payload = ticket.getPayload();
-   const { email, name, picture, sub: googleId } = payload;
-    // Find or create user
-   let user = await User.findOne({ email });
-    if (!user) {
-     // Create new user
-     user = await User.create({
-       email,
-       name,
-       googleId,
-       avatar: picture,
-       isGoogleUser: true
-     });
-   } else {
-     // Update existing user's Google info
-     user.googleId = googleId;
-     user.avatar = picture;
-     user.isGoogleUser = true;
-     await user.save();
-   }
-    // Create JWT token
-   const token = jwt.sign(
-     { userId: user._id },
-     process.env.JWT_SECRET,
-     { expiresIn: '24h' }
-   );
-    // Return user data and token
-   res.status(200).json({
-     message: 'Google login successful',
-     user: {
-       id: user._id,
-       name: user.name,
-       email: user.email,
-       avatar: user.avatar
-     },
-     token
-   });
-  } catch (error) {
-   console.error('Google login error:', error);
-   res.status(500).json({
-     message: 'Google login failed',
-     error: error.message
-   });
- }
+    // Decode token to check audience without verification
+    const tokenParts = credential.split('.');
+    const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
+    console.log('Token audience:', payload.aud);
+    console.log('Expected audience:', process.env.GOOGLE_CLIENT_ID);
+
+    // Verify token
+    try {
+      const ticket = await client.verifyIdToken({
+        idToken: credential,
+        audience: process.env.GOOGLE_CLIENT_ID
+      });
+      const userData = ticket.getPayload();
+
+      const { email, name, picture, sub: googleId } = userData;
+      // Find or create user
+      let user = await User.findOne({ email });
+      if (!user) {
+        // Create new user
+        user = await User.create({
+          email,
+          name,
+          googleId,
+          avatar: picture,
+          isGoogleUser: true
+        });
+      } else {
+        // Update existing user's Google info
+        user.googleId = googleId;
+        user.avatar = picture;
+        user.isGoogleUser = true;
+        await user.save();
+      }
+      // Create JWT token
+      const token = jwt.sign(
+        { userId: user._id },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+      // Return user data and token
+      res.status(200).json({
+        message: 'Google login successful',
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          avatar: user.avatar
+        },
+        token
+      });
+    } catch (verifyError) {
+      console.error('Token verification error:', {
+        message: verifyError.message,
+        expected: process.env.GOOGLE_CLIENT_ID,
+        received: payload.aud
+      });
+      return res.status(401).json({
+        message: 'Token verification failed',
+        error: verifyError.message
+      });
+    }
+  }
+  catch (error) {
+    console.error('Google login error:', error);
+    res.status(500).json({
+      message: 'Google login failed',
+      error: error.message
+    });
+  }
 });
 
 
