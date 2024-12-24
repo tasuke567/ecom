@@ -1,7 +1,10 @@
 const express = require('express');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
 const User = require('../../models/User');
+const client = require('../config/google');
 const bcrypt = require('bcryptjs');
+const User = require('../models/User');
 
 router.post('/register', async (req, res) => {
   try {
@@ -106,7 +109,6 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// backend/routes/auth.js
 router.post('/google', async (req, res) => {
   try {
     const { credential } = req.body;
@@ -115,27 +117,28 @@ router.post('/google', async (req, res) => {
       return res.status(400).json({ message: 'Credential is required' });
     }
 
-    // Verify the credential with Google
+    // ตรวจสอบ token จาก Google
     const ticket = await client.verifyIdToken({
       idToken: credential,
       audience: process.env.GOOGLE_CLIENT_ID
     });
 
-    const { sub, email, name, picture } = ticket.getPayload();
+    const payload = ticket.getPayload();
+    const { sub: googleId, email, name, picture } = payload;
 
-    // Find or create user in your database
+    // หาหรือสร้าง user
     let user = await User.findOne({ email });
-    
+
     if (!user) {
       user = await User.create({
         email,
         name,
         picture,
-        googleId: sub
+        googleId
       });
     }
 
-    // Generate JWT token
+    // สร้าง JWT token
     const token = jwt.sign(
       { userId: user._id },
       process.env.JWT_SECRET,
@@ -152,6 +155,7 @@ router.post('/google', async (req, res) => {
       },
       token
     });
+
   } catch (error) {
     console.error('Google login error:', error);
     res.status(500).json({
