@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('../../models/User');
-const client = require('../config/google');
+const client = require('../../config/google');
 const bcrypt = require('bcryptjs');
 
 
