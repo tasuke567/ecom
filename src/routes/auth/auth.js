@@ -89,16 +89,25 @@ router.post('/login', async (req, res) => {
       });
     }
 
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
     // Create user data to send back (exclude password)
     const userData = {
       id: user._id,
-      name: user.name,
-      email: user.email
+      username: user.username,  // Changed from name to username
+      email: user.email,
+      role: user.role
     };
 
     res.status(200).json({
       message: 'Login successful',
-      user: userData
+      user: userData,
+      token
     });
 
   } catch (error) {
@@ -109,6 +118,7 @@ router.post('/login', async (req, res) => {
     });
   }
 });
+
 
 router.post('/google', async (req, res) => {
   try {
