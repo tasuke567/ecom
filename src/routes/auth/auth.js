@@ -39,10 +39,17 @@ router.post('/register', async (req, res) => {
       username,
       email: email.toLowerCase(),
       password: hashedPassword,
-      role: 'user' // Set default role
+      role: 'user'
     });
 
     await user.save();
+
+    // Generate token for automatic login
+    const token = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
 
     res.status(201).json({
       message: 'Registration successful',
@@ -51,7 +58,8 @@ router.post('/register', async (req, res) => {
         username: user.username,
         email: user.email,
         role: user.role
-      }
+      },
+      token
     });
   } catch (error) {
     console.error('Registration error:', error);
