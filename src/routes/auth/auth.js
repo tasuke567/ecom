@@ -6,29 +6,57 @@ const client = require('../../config/google');
 const bcrypt = require('bcryptjs');
 
 
+// authRoutes.js
 router.post('/register', async (req, res) => {
   try {
     const { username, email, password } = req.body;
 
     // Validation
-    if (!username || !email || !password) {
+    const errors = [];
+    
+    // Username validation
+    if (!username?.trim()) {
+      errors.push('Username is required');
+    } else if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+      errors.push('Username must be 3-20 characters long and can only contain letters, numbers, and underscores');
+    }
+
+    // Email validation
+    if (!email?.trim()) {
+      errors.push('Email is required');
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.push('Invalid email format');
+    }
+
+    // Password validation
+    if (!password) {
+      errors.push('Password is required');
+    } else if (password.length < 6) {
+      errors.push('Password must be at least 6 characters long');
+    }
+
+    if (errors.length > 0) {
       return res.status(400).json({
-        message: 'Please provide all required fields',
-        missing: {
-          name: !username,
-          email: !email,
-          password: !password
-        }
+        message: 'Validation failed',
+        errors
       });
     }
 
     // Check if user exists
     const existingUser = await User.findOne({
-      $or: [{ email }, { username }]
+      $or: [
+        { email: email.toLowerCase() },
+        { username: username.trim() }
+      ]
     });
 
     if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' });
+      if (existingUser.email === email.toLowerCase()) {
+        return res.status(400).json({ message: 'Email already registered' });
+      }
+      if (existingUser.username === username.trim()) {
+        return res.status(400).json({ message: 'Username already taken' });
+      }
     }
 
     // Hash password
@@ -36,9 +64,10 @@ router.post('/register', async (req, res) => {
 
     // Create new user
     const user = new User({
-      username,
+      username: username.trim(),
       email: email.toLowerCase(),
-      password: hashedPassword
+      password: hashedPassword,
+      createdAt: new Date()
     });
 
     await user.save();
@@ -47,7 +76,7 @@ router.post('/register', async (req, res) => {
       message: 'Registration successful',
       user: {
         id: user._id,
-        username: user.username,  // เปลี่ยนจาก name เป็น username
+        username: user.username,
         email: user.email
       }
     });
@@ -59,7 +88,6 @@ router.post('/register', async (req, res) => {
     });
   }
 });
-
 
 router.post('/login', async (req, res) => {
   try {
