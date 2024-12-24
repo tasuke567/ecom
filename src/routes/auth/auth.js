@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../../models/User');
 const client = require('../config/google');
 const bcrypt = require('bcryptjs');
-const User = require('../models/User');
+
 
 router.post('/register', async (req, res) => {
   try {
