@@ -12,51 +12,23 @@ router.post('/register', async (req, res) => {
     const { username, email, password } = req.body;
 
     // Validation
-    const errors = [];
-    
-    // Username validation
-    if (!username?.trim()) {
-      errors.push('Username is required');
-    } else if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
-      errors.push('Username must be 3-20 characters long and can only contain letters, numbers, and underscores');
-    }
-
-    // Email validation
-    if (!email?.trim()) {
-      errors.push('Email is required');
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      errors.push('Invalid email format');
-    }
-
-    // Password validation
-    if (!password) {
-      errors.push('Password is required');
-    } else if (password.length < 6) {
-      errors.push('Password must be at least 6 characters long');
-    }
-
-    if (errors.length > 0) {
+    if (!username || !email || !password) {
       return res.status(400).json({
-        message: 'Validation failed',
-        errors
+        message: 'Please provide all required fields'
       });
     }
 
     // Check if user exists
     const existingUser = await User.findOne({
-      $or: [
-        { email: email.toLowerCase() },
-        { username: username.trim() }
-      ]
+      $or: [{ email }, { username }]
     });
 
     if (existingUser) {
-      if (existingUser.email === email.toLowerCase()) {
-        return res.status(400).json({ message: 'Email already registered' });
-      }
-      if (existingUser.username === username.trim()) {
-        return res.status(400).json({ message: 'Username already taken' });
-      }
+      return res.status(400).json({ 
+        message: existingUser.email === email ? 
+          'Email already registered' : 
+          'Username already taken' 
+      });
     }
 
     // Hash password
@@ -64,10 +36,10 @@ router.post('/register', async (req, res) => {
 
     // Create new user
     const user = new User({
-      username: username.trim(),
+      username,
       email: email.toLowerCase(),
       password: hashedPassword,
-      createdAt: new Date()
+      role: 'user' // Set default role
     });
 
     await user.save();
@@ -77,7 +49,8 @@ router.post('/register', async (req, res) => {
       user: {
         id: user._id,
         username: user.username,
-        email: user.email
+        email: user.email,
+        role: user.role
       }
     });
   } catch (error) {

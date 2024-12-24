@@ -1,8 +1,10 @@
 const mongoose = require('mongoose');
+
 const userSchema = new mongoose.Schema({
-  name: {
+  username: {
     type: String,
-    required: true
+    required: true,
+    unique: true
   },
   email: {
     type: String,
@@ -11,24 +13,17 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: function () {
-      return !this.isGoogleUser; // password required only for non-Google users
-    }
+    required: true
   },
-  googleId: {
+  role: {
     type: String,
-    sparse: true
-  },
-  avatar: {
-    type: String
-  },
-  isGoogleUser: {
-    type: Boolean,
-    default: false
+    enum: ['user', 'admin'],
+    default: 'user'
   },
   createdAt: {
     type: Date,
     default: Date.now
   }
 });
+
 module.exports = mongoose.model('User', userSchema);
