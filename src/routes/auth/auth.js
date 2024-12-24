@@ -105,5 +105,29 @@ router.post('/login', async (req, res) => {
     });
   }
 });
+router.post('/google', async (req, res) => {
+  try {
+    const { credential } = req.body;
+
+    // Here you would typically verify the Google token and find or create a user
+    // For demonstration, let's assume we just return a success message
+    if (!credential) {
+      return res.status(400).json({ message: 'Credential is required' });
+    }
+
+    // Logic to verify the credential and find/create user goes here
+
+    res.status(200).json({
+      message: 'Google login successful',
+      // user: userData // Include user data if needed
+    });
+  } catch (error) {
+    console.error('Google login error:', error);
+    res.status(500).json({
+      message: 'Google login failed',
+      error: error.message
+    });
+  }
+});
 
 module.exports = router;
