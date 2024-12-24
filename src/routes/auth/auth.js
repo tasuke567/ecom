@@ -105,21 +105,52 @@ router.post('/login', async (req, res) => {
     });
   }
 });
+
+// backend/routes/auth.js
 router.post('/google', async (req, res) => {
   try {
     const { credential } = req.body;
 
-    // Here you would typically verify the Google token and find or create a user
-    // For demonstration, let's assume we just return a success message
     if (!credential) {
       return res.status(400).json({ message: 'Credential is required' });
     }
 
-    // Logic to verify the credential and find/create user goes here
+    // Verify the credential with Google
+    const ticket = await client.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID
+    });
+
+    const { sub, email, name, picture } = ticket.getPayload();
+
+    // Find or create user in your database
+    let user = await User.findOne({ email });
+    
+    if (!user) {
+      user = await User.create({
+        email,
+        name,
+        picture,
+        googleId: sub
+      });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
 
     res.status(200).json({
       message: 'Google login successful',
-      // user: userData // Include user data if needed
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        picture: user.picture
+      },
+      token
     });
   } catch (error) {
     console.error('Google login error:', error);
