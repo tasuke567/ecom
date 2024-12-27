@@ -175,7 +175,7 @@ router.post("/google", async (req, res) => {
   }
 });
 
-router.get("/auth/verify", async (req, res) => {
+router.get("/verify", async (req, res) => {
   const token = req.headers["authorization"]?.split(" ")[1]; // Bearer <token>
 
   if (!token) {
