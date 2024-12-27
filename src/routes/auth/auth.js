@@ -1,33 +1,33 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const jwt = require('jsonwebtoken');
-const User = require('../../models/User');
-const client = require('../../config/google');
-const bcrypt = require('bcryptjs');
-
+const jwt = require("jsonwebtoken");
+const User = require("../../models/User");
+const client = require("../../config/google");
+const bcrypt = require("bcryptjs");
 
 // authRoutes.js
-router.post('/register', async (req, res) => {
+router.post("/register", async (req, res) => {
   try {
     const { username, email, password } = req.body;
 
     // Validation
     if (!username || !email || !password) {
       return res.status(400).json({
-        message: 'Please provide all required fields'
+        message: "Please provide all required fields",
       });
     }
 
     // Check if user exists
     const existingUser = await User.findOne({
-      $or: [{ email }, { username }]
+      $or: [{ email }, { username }],
     });
 
     if (existingUser) {
-      return res.status(400).json({ 
-        message: existingUser.email === email ? 
-          'Email already registered' : 
-          'Username already taken' 
+      return res.status(400).json({
+        message:
+          existingUser.email === email
+            ? "Email already registered"
+            : "Username already taken",
       });
     }
 
@@ -39,45 +39,43 @@ router.post('/register', async (req, res) => {
       username,
       email: email.toLowerCase(),
       password: hashedPassword,
-      role: 'user'
+      role: "user",
     });
 
     await user.save();
 
     // Generate token for automatic login
-    const token = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
 
     res.status(201).json({
-      message: 'Registration successful',
+      message: "Registration successful",
       user: {
         id: user._id,
         username: user.username,
         email: user.email,
-        role: user.role
+        role: user.role,
       },
-      token
+      token,
     });
   } catch (error) {
-    console.error('Registration error:', error);
+    console.error("Registration error:", error);
     res.status(500).json({
-      message: 'Registration failed',
-      error: error.message
+      message: "Registration failed",
+      error: error.message,
     });
   }
 });
 
-router.post('/login', async (req, res) => {
+router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
     // Validation
     if (!email || !password) {
       return res.status(400).json({
-        message: 'Please provide email and password'
+        message: "Please provide email and password",
       });
     }
 
@@ -85,7 +83,7 @@ router.post('/login', async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({
-        message: 'Invalid email or password'
+        message: "Invalid email or password",
       });
     }
 
@@ -93,53 +91,49 @@ router.post('/login', async (req, res) => {
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
       return res.status(401).json({
-        message: 'Invalid email or password'
+        message: "Invalid email or password",
       });
     }
 
     // Generate JWT token
-    const token = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
 
     // Create user data to send back (exclude password)
     const userData = {
       id: user._id,
-      username: user.username,  // Changed from name to username
+      username: user.username, // Changed from name to username
       email: user.email,
-      role: user.role
+      role: user.role,
     };
 
     res.status(200).json({
-      message: 'Login successful',
+      message: "Login successful",
       user: userData,
-      token
+      token,
     });
-
   } catch (error) {
-    console.error('Login error:', error);
+    console.error("Login error:", error);
     res.status(500).json({
-      message: 'Login failed',
-      error: error.message
+      message: "Login failed",
+      error: error.message,
     });
   }
 });
 
-
-router.post('/google', async (req, res) => {
+router.post("/google", async (req, res) => {
   try {
     const { credential } = req.body;
 
     if (!credential) {
-      return res.status(400).json({ message: 'Credential is required' });
+      return res.status(400).json({ message: "Credential is required" });
     }
 
     // ตรวจสอบ token จาก Google
     const ticket = await client.verifyIdToken({
       idToken: credential,
-      audience: process.env.GOOGLE_CLIENT_ID
+      audience: process.env.GOOGLE_CLIENT_ID,
     });
 
     const payload = ticket.getPayload();
@@ -153,34 +147,58 @@ router.post('/google', async (req, res) => {
         email,
         name,
         picture,
-        googleId
+        googleId,
       });
     }
 
     // สร้าง JWT token
-    const token = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
 
     res.status(200).json({
-      message: 'Google login successful',
+      message: "Google login successful",
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
-        picture: user.picture
+        picture: user.picture,
       },
-      token
+      token,
     });
-
   } catch (error) {
-    console.error('Google login error:', error);
+    console.error("Google login error:", error);
     res.status(500).json({
-      message: 'Google login failed',
-      error: error.message
+      message: "Google login failed",
+      error: error.message,
     });
+  }
+});
+
+router.get("/auth/verify", async (req, res) => {
+  // Get the token from the Authorization header
+  const token = req.headers["authorization"]?.split(" ")[1]; // Bearer <token>
+
+  if (!token) {
+    return res.status(401).json({ message: "No token provided" });
+  }
+
+  try {
+    // Verify the token
+    const decoded = jwt.verify(token, SECRET_KEY);
+
+    // Retrieve the user associated with the token (typically user ID stored in token)
+    const user = await getUserById(decoded.userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Return user data if valid
+    res.status(200).json({ user });
+  } catch (error) {
+    console.error("Token verification failed:", error);
+    res.status(401).json({ message: "Invalid or expired token" });
   }
 });
 
